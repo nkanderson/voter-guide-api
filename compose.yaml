@@ -1,5 +1,5 @@
 services:
-  api:
+  api: &api
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -24,6 +24,16 @@ services:
       - POSTGRES_DB=${DATABASE_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+  debug_api:
+    <<: *api
+    # The `debug` profile prevents the debug_api service from starting by default.
+    # To run the debug container instead of the default, this service can be
+    # started using `docker compose up debug_api`
+    profiles: ["debug"]
+    command: ["sh", "-c", "pip install debugpy -t /tmp && python /tmp/debugpy --wait-for-client --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000 --nothreading --noreload"]
+    ports:
+      - "5678:5678"
+      - "8000:8000"
 
 volumes:
   postgres_data:
