@@ -12,3 +12,6 @@ db.sqlite3
 
 # VisualStudioCode
 .vscode/*
+
+# Env vars
+.env
