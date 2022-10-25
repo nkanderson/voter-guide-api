@@ -1,0 +1,35 @@
+name: Run Tests
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test_with_db:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: vguser
+          POSTGRES_PASSWORD: supersecretdbpassword
+          POSTGRES_DB: voterguide
+        ports:
+          - 5432:5432
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build API image
+        run: docker build -t api:ci .
+
+      - name: Run tests
+        run: docker run -e DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }} --env-file .env.ci --network host api:ci pytest
