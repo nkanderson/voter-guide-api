@@ -11,7 +11,9 @@ Adding the build option will ensure image is rebuilt before running tests.
 Ex: `./tests/run-tests-in-docker.py -b`
 """
 
-import subprocess, sys, getopt
+import getopt
+import subprocess
+import sys
 
 
 def main():
