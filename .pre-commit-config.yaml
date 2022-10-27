@@ -28,3 +28,6 @@ repos:
     hooks:
       - id: flake8
         args: ["--config=setup.cfg"]
+
+ci:
+  autoupdate_schedule: monthly
