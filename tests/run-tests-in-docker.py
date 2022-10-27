@@ -3,7 +3,7 @@
 """Script for running tests using docker compose.
 
 May be invoked with debug option in order to leverage VS Code debugging config.
-NOTE: breakpoints in tests may not work until resolution of https://github.com/microsoft/debugpy/issues/1098,
+NOTE: breakpoints in tests may not work until resolution of https://github.com/microsoft/debugpy/issues/1098, # noqa: E501
 but uncaught exceptions should still trigger a break in the debugger.
 Ex: `./tests/run-tests-in-docker.py -d`
 
@@ -41,7 +41,10 @@ def main():
     if debug:
         service_name = "debug_api"
         run_opts.append("--publish 5678:5678")
-        cmd = 'sh -c "pip install debugpy -t /tmp && python /tmp/debugpy --log-to log/debug --wait-for-client --listen 0.0.0.0:5678 -m pytest"'
+        cmd = (
+            'sh -c "pip install debugpy -t /tmp && python /tmp/debugpy --log-to log/debug '
+            '--wait-for-client --listen 0.0.0.0:5678 -m pytest"'
+        )
 
     if build:
         build_cmd = f"docker compose build {service_name}"
