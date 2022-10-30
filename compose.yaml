@@ -7,23 +7,35 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    # TODO: Update with db name & db user
+    environment:
+      - DATABASE_PASSWORD=/run/secrets/django-password
     depends_on:
       # TODO: consider adding a `condition: healthy` check with healthcheck `psql $DATABASE_URL -c '\l'`
       - db
     command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     volumes:
       - ./:/app
+    # TODO: Update with db name & db user
+    secrets:
+      - django-password
   db:
-    image: postgres:14-alpine
+    build:
+      context: .
+      dockerfile: ./Dockerfile.postgres
     restart: "on-failure"
-    expose:
-      - "5432"
     environment:
-      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
-      - POSTGRES_USER=${DATABASE_USERNAME}
-      - POSTGRES_DB=${DATABASE_NAME}
+      - POSTGRES_PASSWORD=${SUPERUSER_PASSWORD}
+      # TODO: decide if it's worth using non-defaults for this
+      # - POSTGRES_USER=${DATABASE_USERNAME}
+      # - POSTGRES_DB=${DATABASE_NAME}
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      - postgres15_data:/var/lib/postgresql/data/
+    secrets:
+      - django-password
+      # TODO: create these secrets
+      # - django-db
+      # - django-user
   debug_api:
     <<: *api
     # The `debug` profile prevents the debug_api service from starting by default.
@@ -36,4 +48,8 @@ services:
       - "8000:8000"
 
 volumes:
-  postgres_data:
+  postgres15_data:
+
+secrets:
+  django-password:
+    file: django-password.txt

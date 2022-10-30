@@ -7,12 +7,16 @@ on:
     branches:
       - main
 
+# FIXME: A non-superuser should be created for the db, along with a
+# schema for that user, since the public schema is no longer accessible
+# in postgres 15. The following might still work, since it runs with a
+# superuser, but should ideally be updated to match the non-ci config.
 jobs:
   test_with_db:
     runs-on: ubuntu-latest
     services:
       db:
-        image: postgres:14-alpine
+        image: postgres:15-alpine
         env:
           POSTGRES_USER: vguser
           POSTGRES_PASSWORD: supersecretdbpassword
