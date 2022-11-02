@@ -39,6 +39,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # local
     "voterguide.accounts",
+    "voterguide.api",
+    # 3rd party
+    "rest_framework",
 ]
 
 MIDDLEWARE = [
@@ -132,3 +135,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Custom user model
 AUTH_USER_MODEL = "accounts.CustomUser"
+
+# DRF settings
+REST_FRAMEWORK = {
+    # TODO: Consider using a vendor media type, in which case, the renderers will
+    # need to inherit from JSONRenderer and specify a custom `media_type`
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.AcceptHeaderVersioning"
+}
