@@ -138,7 +138,10 @@ AUTH_USER_MODEL = "accounts.CustomUser"
 
 # DRF settings
 REST_FRAMEWORK = {
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
+    ],
     # TODO: Consider using a vendor media type, in which case, the renderers will
     # need to inherit from JSONRenderer and specify a custom `media_type`
-    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.AcceptHeaderVersioning"
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.AcceptHeaderVersioning",
 }
