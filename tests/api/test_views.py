@@ -1,3 +1,4 @@
+import itertools
 import json
 
 import pytest
@@ -11,292 +12,165 @@ from voterguide.api.views import CandidateViewSet, EndorserViewSet
 pytestmark = pytest.mark.django_db
 
 
-class TestCandidateList:
-    url = reverse("candidate-list")
+@pytest.mark.parametrize(
+    "model, viewset, data",
+    [
+        (
+            Candidate,
+            CandidateViewSet,
+            {
+                "first_name": "Haley",
+                "last_name": "Clark",
+                "party": "D",
+            },
+        ),
+        (
+            Endorser,
+            EndorserViewSet,
+            {
+                "name": "Service Employees International Union",
+                "abbreviation": "SEIU",
+            },
+        ),
+    ],
+)
+class TestList:
+    def list_url(self, model):
+        class_name = model.__name__.lower()
+        return reverse(f"{class_name}-list")
 
-    def test_candidate_list(self, drf_rf):
-        baker.make(Candidate, _quantity=3)
-        request = drf_rf.get(self.url)
-        view = CandidateViewSet.as_view({"get": "list"})
-
-        response = view(request).render()
-
-        assert response.status_code == 200
-        assert len(json.loads(response.content)) == 3
-
-    def test_candidate_create_unauthenticated(self, drf_rf):
-        candidate_data = {"first_name": "Joanie", "last_name": "Clark"}
-        request = drf_rf.post(
-            self.url, content_type="application/json", data=json.dumps(candidate_data)
-        )
-        view = CandidateViewSet.as_view({"post": "create"})
-
-        response = view(request).render()
-
-        assert response.status_code == 403
-
-    def test_candidate_create_authenticated(self, drf_rf, user):
-        candidate_data = {"first_name": "Joanie", "last_name": "Clark"}
-        request = drf_rf.post(
-            self.url, content_type="application/json", data=json.dumps(candidate_data)
-        )
-        force_authenticate(request, user=user)
-        view = CandidateViewSet.as_view({"post": "create"})
-
-        response = view(request).render()
-
-        assert response.status_code == 201
-        return_data = json.loads(response.content)
-        assert return_data["first_name"] == "Joanie"
-        assert return_data["last_name"] == "Clark"
-
-
-class TestCandidateDetail:
-    def detail_url(self, id):
-        return reverse("candidate-detail", kwargs={"pk": id})
-
-    def test_candidate_retrieve(self, drf_rf):
-        candidate = baker.make(Candidate)
-        request = drf_rf.get(self.detail_url(candidate.id))
-        view = CandidateViewSet.as_view({"get": "retrieve"})
-
-        response = view(request, pk=candidate.id).render()
-
-        assert response.status_code == 200
-        return_data = json.loads(response.content)
-        assert return_data["first_name"] == candidate.first_name
-        assert return_data["id"] == candidate.id
-
-    def test_candidate_update_unauthenticated(self, drf_rf):
-        candidate = baker.make(Candidate)
-        new_data = {"first_name": "Haley", "last_name": "Clark"}
-        request = drf_rf.put(
-            self.detail_url(candidate.id),
-            content_type="application/json",
-            data=json.dumps(new_data),
-        )
-        view = CandidateViewSet.as_view({"put": "update"})
-
-        response = view(request, pk=candidate.id).render()
-
-        assert response.status_code == 403
-
-    def test_candidate_update_authenticated(self, drf_rf, user):
-        candidate = baker.make(Candidate)
-        new_data = {"first_name": "Haley", "last_name": "Clark"}
-        request = drf_rf.put(
-            self.detail_url(candidate.id),
-            content_type="application/json",
-            data=json.dumps(new_data),
-        )
-        view = CandidateViewSet.as_view({"put": "update"})
-        force_authenticate(request, user=user)
-
-        response = view(request, pk=candidate.id).render()
-
-        assert response.status_code == 200
-        return_data = json.loads(response.content)
-        assert return_data["first_name"] == "Haley"
-        assert return_data["last_name"] == "Clark"
-        assert return_data["id"] == candidate.id
-
-    def test_candidate_partial_update_unauthenticated(self, drf_rf):
-        candidate = baker.make(Candidate)
-        update_data = {"party": "D"}
-        request = drf_rf.patch(
-            self.detail_url(candidate.id),
-            content_type="application/json",
-            data=json.dumps(update_data),
-        )
-        view = CandidateViewSet.as_view({"patch": "partial_update"})
-
-        response = view(request, pk=candidate.id).render()
-
-        assert response.status_code == 403
-
-    def test_candidate_partial_update_authenticated(self, drf_rf, user):
-        candidate = baker.make(Candidate)
-        update_data = {"party": "D"}
-        request = drf_rf.patch(
-            self.detail_url(candidate.id),
-            content_type="application/json",
-            data=json.dumps(update_data),
-        )
-        view = CandidateViewSet.as_view({"patch": "partial_update"})
-        force_authenticate(request, user=user)
-
-        response = view(request, pk=candidate.id).render()
-
-        assert response.status_code == 200
-        return_data = json.loads(response.content)
-        assert return_data["party"] != candidate.party
-        assert return_data["first_name"] == candidate.first_name
-        assert return_data["last_name"] == candidate.last_name
-        assert return_data["id"] == candidate.id
-
-    def test_candidate_destroy_unauthenticated(self, drf_rf):
-        candidate = baker.make(Candidate)
-        request = drf_rf.delete(self.detail_url(candidate.id))
-        view = CandidateViewSet.as_view({"delete": "destroy"})
-
-        response = view(request, pk=candidate.id).render()
-
-        assert response.status_code == 403
-
-    def test_candidate_destroy_authenticated(self, drf_rf, user):
-        candidate = baker.make(Candidate)
-        request = drf_rf.delete(self.detail_url(candidate.id))
-        view = CandidateViewSet.as_view({"delete": "destroy"})
-        force_authenticate(request, user=user)
-
-        response = view(request, pk=candidate.id).render()
-
-        assert response.status_code == 204
-
-
-class TestEndorserList:
-    url = reverse("endorser-list")
-
-    def test_endorser_list(self, drf_rf):
-        baker.make(Endorser, _quantity=3)
-        request = drf_rf.get(self.url)
-        view = EndorserViewSet.as_view({"get": "list"})
+    def test_list(self, drf_rf, model, viewset, data):
+        baker.make(model, _quantity=3)
+        request = drf_rf.get(self.list_url(model))
+        view = viewset.as_view({"get": "list"})
 
         response = view(request).render()
 
         assert response.status_code == 200
         assert len(json.loads(response.content)) == 3
 
-    def test_endorser_create_unauthenticated(self, drf_rf):
-        endorser_data = {"name": "Portland Mercury", "abbreviation": "PM"}
+    @pytest.mark.parametrize("authenticated, status_code", [(True, 201), (False, 403)])
+    def test_create(
+        self, authenticated, status_code, drf_rf, user, model, viewset, data
+    ):
         request = drf_rf.post(
-            self.url, content_type="application/json", data=json.dumps(endorser_data)
+            self.list_url(model),
+            content_type="application/json",
+            data=json.dumps(data),
         )
-        view = EndorserViewSet.as_view({"post": "create"})
+        if authenticated:
+            force_authenticate(request, user=user)
+        view = viewset.as_view({"post": "create"})
 
         response = view(request).render()
 
-        assert response.status_code == 403
-
-    def test_endorser_create_authenticated(self, drf_rf, user):
-        endorser_data = {"name": "Portland Mercury", "abbreviation": "PM"}
-        request = drf_rf.post(
-            self.url, content_type="application/json", data=json.dumps(endorser_data)
-        )
-        force_authenticate(request, user=user)
-        view = EndorserViewSet.as_view({"post": "create"})
-
-        response = view(request).render()
-
-        assert response.status_code == 201
-        return_data = json.loads(response.content)
-        assert return_data["name"] == "Portland Mercury"
-        assert return_data["abbreviation"] == "PM"
+        assert response.status_code == status_code
+        if authenticated:
+            return_data = json.loads(response.content)
+            for key in data:
+                assert return_data[key] == data[key]
 
 
-class TestEndorserDetail:
-    def detail_url(self, id):
-        return reverse("endorser-detail", kwargs={"pk": id})
+@pytest.mark.parametrize(
+    "model, viewset, data",
+    [
+        (
+            Candidate,
+            CandidateViewSet,
+            {
+                "first_name": "Joanie",
+                "last_name": "Clark",
+                "party": "W",
+            },
+        ),
+        (
+            Endorser,
+            EndorserViewSet,
+            {
+                "name": "Sierra Club",
+                "abbreviation": "SC",
+            },
+        ),
+    ],
+)
+class TestDetail:
+    def detail_url(self, id, model):
+        class_name = model.__name__.lower()
+        return reverse(f"{class_name}-detail", kwargs={"pk": id})
 
-    def test_endorser_retrieve(self, drf_rf):
-        endorser = baker.make(Endorser)
-        request = drf_rf.get(self.detail_url(endorser.id))
-        view = EndorserViewSet.as_view({"get": "retrieve"})
+    def test_retrieve(self, drf_rf, model, viewset, data):
+        resource = baker.make(model)
+        request = drf_rf.get(self.detail_url(resource.id, model))
+        view = viewset.as_view({"get": "retrieve"})
 
-        response = view(request, pk=endorser.id).render()
+        response = view(request, pk=resource.id).render()
 
         assert response.status_code == 200
         return_data = json.loads(response.content)
-        assert return_data["name"] == endorser.name
-        assert return_data["id"] == endorser.id
+        assert return_data["id"] == resource.id
+        for key in data.keys():
+            assert return_data[key] == getattr(resource, key)
 
-    def test_endorser_update_unauthenticated(self, drf_rf):
-        endorser = baker.make(Endorser)
-        new_data = {
-            "name": "Service Employees International Union",
-            "abbreviation": "SEIU",
-        }
+    @pytest.mark.parametrize("authenticated, status_code", [(True, 200), (False, 403)])
+    def test_update(
+        self, authenticated, status_code, drf_rf, user, model, viewset, data
+    ):
+        resource = baker.make(model)
+        new_data = data
         request = drf_rf.put(
-            self.detail_url(endorser.id),
+            self.detail_url(resource.id, model),
             content_type="application/json",
             data=json.dumps(new_data),
         )
-        view = EndorserViewSet.as_view({"put": "update"})
+        view = viewset.as_view({"put": "update"})
+        if authenticated:
+            force_authenticate(request, user=user)
 
-        response = view(request, pk=endorser.id).render()
+        response = view(request, pk=resource.id).render()
 
-        assert response.status_code == 403
+        assert response.status_code == status_code
 
-    def test_endorser_update_authenticated(self, drf_rf, user):
-        endorser = baker.make(Endorser)
-        new_data = {
-            "name": "Service Employees International Union",
-            "abbreviation": "SEIU",
-        }
-        request = drf_rf.put(
-            self.detail_url(endorser.id),
-            content_type="application/json",
-            data=json.dumps(new_data),
-        )
-        view = EndorserViewSet.as_view({"put": "update"})
-        force_authenticate(request, user=user)
+        if authenticated:
+            return_data = json.loads(response.content)
+            assert return_data["id"] == resource.id
+            for key in data.keys():
+                assert return_data[key] == new_data[key]
 
-        response = view(request, pk=endorser.id).render()
-
-        assert response.status_code == 200
-        return_data = json.loads(response.content)
-        assert return_data["name"] == "Service Employees International Union"
-        assert return_data["abbreviation"] == "SEIU"
-        assert return_data["id"] == endorser.id
-
-    def test_endorser_partial_update_unauthenticated(self, drf_rf):
-        endorser = baker.make(Endorser)
-        update_data = {"abbreviation": "AAA"}
+    @pytest.mark.parametrize("authenticated, status_code", [(True, 200), (False, 403)])
+    def test_partial_update(
+        self, authenticated, status_code, drf_rf, user, model, viewset, data
+    ):
+        resource = baker.make(model)
+        first_key, *rest_keys = list(data.keys())
+        update_data = dict(itertools.islice(data.items(), 1))
         request = drf_rf.patch(
-            self.detail_url(endorser.id),
+            self.detail_url(resource.id, model),
             content_type="application/json",
             data=json.dumps(update_data),
         )
-        view = EndorserViewSet.as_view({"patch": "partial_update"})
+        view = viewset.as_view({"patch": "partial_update"})
+        if authenticated:
+            force_authenticate(request, user=user)
 
-        response = view(request, pk=endorser.id).render()
+        response = view(request, pk=resource.id).render()
 
-        assert response.status_code == 403
+        assert response.status_code == status_code
+        if authenticated:
+            return_data = json.loads(response.content)
+            assert return_data[first_key] != getattr(resource, first_key)
+            for key in rest_keys:
+                assert return_data[key] == getattr(resource, key)
 
-    def test_endorser_partial_update_authenticated(self, drf_rf, user):
-        endorser = baker.make(Endorser)
-        update_data = {"abbreviation": "AAA"}
-        request = drf_rf.patch(
-            self.detail_url(endorser.id),
-            content_type="application/json",
-            data=json.dumps(update_data),
-        )
-        view = EndorserViewSet.as_view({"patch": "partial_update"})
-        force_authenticate(request, user=user)
+    @pytest.mark.parametrize("authenticated, status_code", [(True, 204), (False, 403)])
+    def test_destroy(
+        self, authenticated, status_code, drf_rf, user, model, viewset, data
+    ):
+        resource = baker.make(model)
+        request = drf_rf.delete(self.detail_url(resource.id, model))
+        if authenticated:
+            force_authenticate(request, user=user)
+        view = viewset.as_view({"delete": "destroy"})
 
-        response = view(request, pk=endorser.id).render()
+        response = view(request, pk=resource.id).render()
 
-        assert response.status_code == 200
-        return_data = json.loads(response.content)
-        assert return_data["abbreviation"] != endorser.abbreviation
-        assert return_data["name"] == endorser.name
-        assert return_data["id"] == endorser.id
-
-    def test_endorser_destroy_unauthenticated(self, drf_rf):
-        endorser = baker.make(Endorser)
-        request = drf_rf.delete(self.detail_url(endorser.id))
-        view = EndorserViewSet.as_view({"delete": "destroy"})
-
-        response = view(request, pk=endorser.id).render()
-
-        assert response.status_code == 403
-
-    def test_endorser_destroy_authenticated(self, drf_rf, user):
-        endorser = baker.make(Endorser)
-        request = drf_rf.delete(self.detail_url(endorser.id))
-        view = EndorserViewSet.as_view({"delete": "destroy"})
-        force_authenticate(request, user=user)
-
-        response = view(request, pk=endorser.id).render()
-
-        assert response.status_code == 204
+        assert response.status_code == status_code
