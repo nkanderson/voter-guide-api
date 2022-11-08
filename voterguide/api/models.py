@@ -74,3 +74,13 @@ class Candidate(models.Model):
         return " ".join(
             name for name in (self.first_name, self.middle_name, self.last_name) if name
         )
+
+
+class Endorser(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    name = models.CharField(max_length=120)
+    abbreviation = models.CharField(max_length=20, unique=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.abbreviation})"

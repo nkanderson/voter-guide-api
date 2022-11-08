@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from django.db.utils import DataError, IntegrityError
 
-from voterguide.api.models import Candidate
+from voterguide.api.models import Candidate, Endorser
 
 pytestmark = pytest.mark.django_db
 
@@ -160,3 +160,41 @@ def test_create_unique_candidates(original, near_duplicate):
     c1 = Candidate.objects.create(**original)
     c2 = Candidate.objects.create(**near_duplicate)
     assert c1.id != c2.id
+
+
+@pytest.mark.parametrize(
+    "data, e_string",
+    [
+        (
+            {"name": "Coalition of Communities of Color", "abbreviation": "CCC"},
+            "Coalition of Communities of Color (CCC)",
+        ),
+        (
+            {
+                "name": "Asian Pacific American Network of Oregon",
+                "abbreviation": "APANO",
+            },
+            "Asian Pacific American Network of Oregon (APANO)",
+        ),
+    ],
+)
+def test_create_endorser(data, e_string):
+    endorser = Endorser.objects.create(**data)
+    assert isinstance(endorser, Endorser)
+    assert str(endorser) == e_string
+
+
+def test_endorser_unique_constraint():
+    e1 = {"name": "Basic Rights Oregon", "abbreviation": "BRO"}
+    e2 = {"name": "Bigly Republicans of Oregon", "abbreviation": "BRO"}
+    Endorser.objects.create(**e1)
+    with pytest.raises(IntegrityError, match=r"violates unique constraint"):
+        Endorser.objects.create(**e2)
+
+
+def test_create_invalid_endorser():
+    with pytest.raises(DataError, match=r"value too long"):
+        Endorser.objects.create(
+            name="Oregon League of Conservation Voters",
+            abbreviation="Oregon League of Conservation Voters",
+        )
