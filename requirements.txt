@@ -20,7 +20,7 @@ pathspec==0.10.1
 platformdirs==2.5.3
 pluggy==1.0.0
 pre-commit==2.20.0
-psycopg2==2.9.4
+psycopg2==2.9.5
 py==1.11.0
 pycodestyle==2.9.1
 pyflakes==2.5.0
