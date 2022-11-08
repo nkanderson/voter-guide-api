@@ -12,19 +12,38 @@ pytestmark = pytest.mark.django_db
     "data, c_string, full_name",
     [
         (
-            {"first_name": "First", "last_name": "Last", "party": "D"},
-            "First Last - Democrat",
-            "First Last",
+            {"first_name": "Haley", "last_name": "Clark", "party": "D"},
+            "Haley Clark - Democrat",
+            "Haley Clark",
         ),
         (
-            {"first_name": "No_last_name", "party": "G"},
-            "No_last_name - Pacific Green",
-            "No_last_name",
+            {"first_name": "Wonderboy", "party": "G"},
+            "Wonderboy - Pacific Green",
+            "Wonderboy",
         ),
         (
-            {"first_name": "Unknown", "last_name": "Party"},
-            "Unknown Party - Unknown",
-            "Unknown Party",
+            {"first_name": "Malcolm", "last_name": "Levitan"},
+            "Malcolm Levitan - Unknown",
+            "Malcolm Levitan",
+        ),
+        (
+            {
+                "first_name": "John",
+                "last_name": "Bosworth",
+                "date_of_birth": date(1930, 1, 1),
+            },
+            "John Bosworth (born January 1, 1930) - Unknown",
+            "John Bosworth",
+        ),
+        (
+            {
+                "first_name": "Diane",
+                "middle_name": "Kimberly",
+                "last_name": "Gould",
+                "date_of_birth": date(1940, 12, 31),
+            },
+            "Diane Kimberly Gould (born December 31, 1940) - Unknown",
+            "Diane Kimberly Gould",
         ),
     ],
 )
