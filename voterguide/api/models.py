@@ -1,6 +1,17 @@
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
+from django.utils.translation import gettext_lazy as _
+from localflavor.us.models import USStateField
+from localflavor.us.us_states import STATE_CHOICES
+
+
+class Level(models.TextChoices):
+    FEDERAL = "F", _("Federal")
+    STATE = "S", _("State")
+    CITY = "C", _("City")
+    COUNTY = "T", _("County")
+    REGIONAL = "R", _("Regional")
 
 
 class Candidate(models.Model):
@@ -84,3 +95,39 @@ class Endorser(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.abbreviation})"
+
+
+class Measure(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    level = models.CharField(max_length=1, choices=Level.choices)
+    name = models.CharField(max_length=120)
+    description = models.TextField(blank=True)
+    city = models.CharField(max_length=200, blank=True)
+    state = USStateField(choices=STATE_CHOICES)
+    election_date = models.DateField()
+    passed = models.BooleanField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"),
+                "election_date",
+                "state",
+                name="measure_unique_name_date_state",
+            ),
+            models.CheckConstraint(
+                check=models.Q(level__in=Level.values),
+                name="measure_level_valid",
+            ),
+            models.CheckConstraint(
+                check=models.Q(state__in=[state[0] for state in STATE_CHOICES]),
+                name="measure_state_valid",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.name}: election on {self.election_date.strftime('%B %-d, %Y')} "
+            f"in {self.get_state_display()}"
+        )
