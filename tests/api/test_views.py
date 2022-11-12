@@ -1,15 +1,29 @@
 import itertools
 import json
+from datetime import datetime
 
 import pytest
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.serializers.json import DjangoJSONEncoder
 from django.urls import reverse
 from model_bakery import baker
 from rest_framework.test import force_authenticate
 
-from voterguide.api.models import Candidate, Endorser
-from voterguide.api.views import CandidateViewSet, EndorserViewSet
+from voterguide.api.models import Candidate, Endorser, Measure
+from voterguide.api.views import CandidateViewSet, EndorserViewSet, MeasureViewSet
 
 pytestmark = pytest.mark.django_db
+
+
+# Need to convert date string from json into date object for comparison
+# to a model's date field
+def date_hook(json_dict):
+    for (key, value) in json_dict.items():
+        try:
+            json_dict[key] = datetime.strptime(value, "%Y-%m-%d").date()
+        except Exception:
+            pass
+    return json_dict
 
 
 @pytest.mark.parametrize(
@@ -30,6 +44,16 @@ pytestmark = pytest.mark.django_db
             {
                 "name": "Service Employees International Union",
                 "abbreviation": "SEIU",
+            },
+        ),
+        (
+            Measure,
+            MeasureViewSet,
+            {
+                "name": "M114",
+                "state": "OR",
+                "level": "T",
+                "election_date": "2022-11-08",
             },
         ),
     ],
@@ -56,7 +80,7 @@ class TestList:
         request = drf_rf.post(
             self.list_url(model),
             content_type="application/json",
-            data=json.dumps(data),
+            data=json.dumps(data, cls=DjangoJSONEncoder),
         )
         if authenticated:
             force_authenticate(request, user=user)
@@ -67,6 +91,7 @@ class TestList:
         assert response.status_code == status_code
         if authenticated:
             return_data = json.loads(response.content)
+            assert model.objects.get(pk=return_data["id"])
             for key in data:
                 assert return_data[key] == data[key]
 
@@ -91,6 +116,16 @@ class TestList:
                 "abbreviation": "SC",
             },
         ),
+        (
+            Measure,
+            MeasureViewSet,
+            {
+                "name": "M114",
+                "state": "OR",
+                "level": "T",
+                "election_date": "2022-11-08",
+            },
+        ),
     ],
 )
 class TestDetail:
@@ -106,7 +141,7 @@ class TestDetail:
         response = view(request, pk=resource.id).render()
 
         assert response.status_code == 200
-        return_data = json.loads(response.content)
+        return_data = json.loads(response.content, object_hook=date_hook)
         assert return_data["id"] == resource.id
         for key in data.keys():
             assert return_data[key] == getattr(resource, key)
@@ -116,11 +151,11 @@ class TestDetail:
         self, authenticated, status_code, drf_rf, user, model, viewset, data
     ):
         resource = baker.make(model)
-        new_data = data
+        new_data = json.dumps(data, cls=DjangoJSONEncoder)
         request = drf_rf.put(
             self.detail_url(resource.id, model),
             content_type="application/json",
-            data=json.dumps(new_data),
+            data=new_data,
         )
         view = viewset.as_view({"put": "update"})
         if authenticated:
@@ -131,10 +166,13 @@ class TestDetail:
         assert response.status_code == status_code
 
         if authenticated:
-            return_data = json.loads(response.content)
+            return_data = json.loads(response.content, object_hook=date_hook)
+            new_data = json.loads(response.content, object_hook=date_hook)
+            resource.refresh_from_db()
+
             assert return_data["id"] == resource.id
             for key in data.keys():
-                assert return_data[key] == new_data[key]
+                assert return_data[key] == getattr(resource, key) == new_data[key]
 
     @pytest.mark.parametrize("authenticated, status_code", [(True, 200), (False, 403)])
     def test_partial_update(
@@ -146,18 +184,27 @@ class TestDetail:
         request = drf_rf.patch(
             self.detail_url(resource.id, model),
             content_type="application/json",
-            data=json.dumps(update_data),
+            data=json.dumps(update_data, cls=DjangoJSONEncoder),
         )
         view = viewset.as_view({"patch": "partial_update"})
         if authenticated:
             force_authenticate(request, user=user)
 
+        assert update_data[first_key] != getattr(resource, first_key)
+
         response = view(request, pk=resource.id).render()
 
         assert response.status_code == status_code
         if authenticated:
-            return_data = json.loads(response.content)
-            assert return_data[first_key] != getattr(resource, first_key)
+            return_data = json.loads(response.content, object_hook=date_hook)
+            update_data = json.loads(response.content, object_hook=date_hook)
+
+            resource.refresh_from_db()
+            assert (
+                return_data[first_key]
+                == getattr(resource, first_key)
+                == update_data[first_key]
+            )
             for key in rest_keys:
                 assert return_data[key] == getattr(resource, key)
 
@@ -166,11 +213,18 @@ class TestDetail:
         self, authenticated, status_code, drf_rf, user, model, viewset, data
     ):
         resource = baker.make(model)
+        resource_id = resource.id
         request = drf_rf.delete(self.detail_url(resource.id, model))
         if authenticated:
             force_authenticate(request, user=user)
         view = viewset.as_view({"delete": "destroy"})
 
-        response = view(request, pk=resource.id).render()
+        response = view(request, pk=resource_id).render()
 
         assert response.status_code == status_code
+
+        if authenticated:
+            with pytest.raises(
+                ObjectDoesNotExist, match=r"matching query does not exist"
+            ):
+                model.objects.get(pk=resource_id)
