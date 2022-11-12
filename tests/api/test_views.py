@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 
 import pytest
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.urls import reverse
 from model_bakery import baker
@@ -90,6 +91,7 @@ class TestList:
         assert response.status_code == status_code
         if authenticated:
             return_data = json.loads(response.content)
+            assert model.objects.get(pk=return_data["id"])
             for key in data:
                 assert return_data[key] == data[key]
 
@@ -149,11 +151,11 @@ class TestDetail:
         self, authenticated, status_code, drf_rf, user, model, viewset, data
     ):
         resource = baker.make(model)
-        new_data = data
+        new_data = json.dumps(data, cls=DjangoJSONEncoder)
         request = drf_rf.put(
             self.detail_url(resource.id, model),
             content_type="application/json",
-            data=json.dumps(new_data, cls=DjangoJSONEncoder),
+            data=new_data,
         )
         view = viewset.as_view({"put": "update"})
         if authenticated:
@@ -164,10 +166,13 @@ class TestDetail:
         assert response.status_code == status_code
 
         if authenticated:
-            return_data = json.loads(response.content)
+            return_data = json.loads(response.content, object_hook=date_hook)
+            new_data = json.loads(response.content, object_hook=date_hook)
+            resource.refresh_from_db()
+
             assert return_data["id"] == resource.id
             for key in data.keys():
-                assert return_data[key] == new_data[key]
+                assert return_data[key] == getattr(resource, key) == new_data[key]
 
     @pytest.mark.parametrize("authenticated, status_code", [(True, 200), (False, 403)])
     def test_partial_update(
@@ -185,12 +190,21 @@ class TestDetail:
         if authenticated:
             force_authenticate(request, user=user)
 
+        assert update_data[first_key] != getattr(resource, first_key)
+
         response = view(request, pk=resource.id).render()
 
         assert response.status_code == status_code
         if authenticated:
             return_data = json.loads(response.content, object_hook=date_hook)
-            assert return_data[first_key] != getattr(resource, first_key)
+            update_data = json.loads(response.content, object_hook=date_hook)
+
+            resource.refresh_from_db()
+            assert (
+                return_data[first_key]
+                == getattr(resource, first_key)
+                == update_data[first_key]
+            )
             for key in rest_keys:
                 assert return_data[key] == getattr(resource, key)
 
@@ -199,11 +213,18 @@ class TestDetail:
         self, authenticated, status_code, drf_rf, user, model, viewset, data
     ):
         resource = baker.make(model)
+        resource_id = resource.id
         request = drf_rf.delete(self.detail_url(resource.id, model))
         if authenticated:
             force_authenticate(request, user=user)
         view = viewset.as_view({"delete": "destroy"})
 
-        response = view(request, pk=resource.id).render()
+        response = view(request, pk=resource_id).render()
 
         assert response.status_code == status_code
+
+        if authenticated:
+            with pytest.raises(
+                ObjectDoesNotExist, match=r"matching query does not exist"
+            ):
+                model.objects.get(pk=resource_id)
