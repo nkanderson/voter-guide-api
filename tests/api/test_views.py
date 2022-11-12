@@ -1,15 +1,28 @@
 import itertools
 import json
+from datetime import datetime
 
 import pytest
+from django.core.serializers.json import DjangoJSONEncoder
 from django.urls import reverse
 from model_bakery import baker
 from rest_framework.test import force_authenticate
 
-from voterguide.api.models import Candidate, Endorser
-from voterguide.api.views import CandidateViewSet, EndorserViewSet
+from voterguide.api.models import Candidate, Endorser, Measure
+from voterguide.api.views import CandidateViewSet, EndorserViewSet, MeasureViewSet
 
 pytestmark = pytest.mark.django_db
+
+
+# Need to convert date string from json into date object for comparison
+# to a model's date field
+def date_hook(json_dict):
+    for (key, value) in json_dict.items():
+        try:
+            json_dict[key] = datetime.strptime(value, "%Y-%m-%d").date()
+        except Exception:
+            pass
+    return json_dict
 
 
 @pytest.mark.parametrize(
@@ -30,6 +43,16 @@ pytestmark = pytest.mark.django_db
             {
                 "name": "Service Employees International Union",
                 "abbreviation": "SEIU",
+            },
+        ),
+        (
+            Measure,
+            MeasureViewSet,
+            {
+                "name": "M114",
+                "state": "OR",
+                "level": "T",
+                "election_date": "2022-11-08",
             },
         ),
     ],
@@ -56,7 +79,7 @@ class TestList:
         request = drf_rf.post(
             self.list_url(model),
             content_type="application/json",
-            data=json.dumps(data),
+            data=json.dumps(data, cls=DjangoJSONEncoder),
         )
         if authenticated:
             force_authenticate(request, user=user)
@@ -91,6 +114,16 @@ class TestList:
                 "abbreviation": "SC",
             },
         ),
+        (
+            Measure,
+            MeasureViewSet,
+            {
+                "name": "M114",
+                "state": "OR",
+                "level": "T",
+                "election_date": "2022-11-08",
+            },
+        ),
     ],
 )
 class TestDetail:
@@ -106,7 +139,7 @@ class TestDetail:
         response = view(request, pk=resource.id).render()
 
         assert response.status_code == 200
-        return_data = json.loads(response.content)
+        return_data = json.loads(response.content, object_hook=date_hook)
         assert return_data["id"] == resource.id
         for key in data.keys():
             assert return_data[key] == getattr(resource, key)
@@ -120,7 +153,7 @@ class TestDetail:
         request = drf_rf.put(
             self.detail_url(resource.id, model),
             content_type="application/json",
-            data=json.dumps(new_data),
+            data=json.dumps(new_data, cls=DjangoJSONEncoder),
         )
         view = viewset.as_view({"put": "update"})
         if authenticated:
@@ -146,7 +179,7 @@ class TestDetail:
         request = drf_rf.patch(
             self.detail_url(resource.id, model),
             content_type="application/json",
-            data=json.dumps(update_data),
+            data=json.dumps(update_data, cls=DjangoJSONEncoder),
         )
         view = viewset.as_view({"patch": "partial_update"})
         if authenticated:
@@ -156,7 +189,7 @@ class TestDetail:
 
         assert response.status_code == status_code
         if authenticated:
-            return_data = json.loads(response.content)
+            return_data = json.loads(response.content, object_hook=date_hook)
             assert return_data[first_key] != getattr(resource, first_key)
             for key in rest_keys:
                 assert return_data[key] == getattr(resource, key)

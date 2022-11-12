@@ -1,7 +1,11 @@
 from rest_framework import viewsets
 
-from voterguide.api.models import Candidate, Endorser
-from voterguide.api.serializers import CandidateSerializer, EndorserSerializer
+from voterguide.api.models import Candidate, Endorser, Measure
+from voterguide.api.serializers import (
+    CandidateSerializer,
+    EndorserSerializer,
+    MeasureSerializer,
+)
 
 
 class CandidateViewSet(viewsets.ModelViewSet):
@@ -20,3 +24,12 @@ class EndorserViewSet(viewsets.ModelViewSet):
 
     queryset = Endorser.objects.all()
     serializer_class = EndorserSerializer
+
+
+class MeasureViewSet(viewsets.ModelViewSet):
+    """
+    This viewset provides `list`, `create`, `retrieve`, `update` and `destroy` actions.
+    """
+
+    queryset = Measure.objects.all()
+    serializer_class = MeasureSerializer
