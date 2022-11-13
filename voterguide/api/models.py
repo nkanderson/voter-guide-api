@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
@@ -12,6 +13,18 @@ class Level(models.TextChoices):
     CITY = "C", _("City")
     COUNTY = "T", _("County")
     REGIONAL = "R", _("Regional")
+
+
+class Branch(models.TextChoices):
+    EXECUTIVE = "E", _("Executive")
+    JUDICIAL = "J", _("Judicial")
+    LEGISLATIVE = "L", _("Legislative")
+    OTHER = "O", _("Other")
+
+
+class LegislativeBody(models.TextChoices):
+    HOUSE = "H", _("House of Representatives")
+    SENATE = "S", _("Senate")
 
 
 class Candidate(models.Model):
@@ -35,6 +48,19 @@ class Candidate(models.Model):
         ("W", "Working Families Party"),
     )
     party = models.CharField(choices=PARTIES, default="U", max_length=1)
+    running_for_seat = models.ForeignKey(
+        "Seat",
+        on_delete=models.SET_NULL,
+        null=True,
+        help_text="The seat a candidate is running for.",
+    )
+    seat = models.ForeignKey(
+        "Seat",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="incumbent",
+        help_text="The seat a candidate is currently holding (if any).",
+    )
 
     class Meta:
         # TODO: Consider using the FEC candidate ID instead. As described by ID_ID in
@@ -131,3 +157,143 @@ class Measure(models.Model):
             f"{self.name}: election on {self.election_date.strftime('%B %-d, %Y')} "
             f"in {self.get_state_display()}"
         )
+
+
+class Seat(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    level = models.CharField(max_length=1, choices=Level.choices)
+    branch = models.CharField(max_length=1, choices=Branch.choices, blank=True)
+    # Role is similar to title, e.g. President, Mayor, Representative, Justice, Governor
+    role = models.CharField(max_length=200, blank=True)
+    body = models.CharField(max_length=1, choices=LegislativeBody.choices, blank=True)
+    district = models.PositiveSmallIntegerField(null=True, blank=True)
+    state = USStateField(choices=STATE_CHOICES, blank=True)
+    city = models.CharField(max_length=200, blank=True)
+    county = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        constraints = [
+            # For federal seats where state is null, role and level must be unique
+            # For example, President should not have a state, and should be unique.
+            # A federal-level House of Representatives seat may not be unique on
+            # these fields, but should have a non-null state value.
+            models.UniqueConstraint(
+                Lower("role"),
+                Lower("level"),
+                condition=Q(state__isnull=True),
+                name="seat_unique_role_level_null_state",
+            ),
+            models.CheckConstraint(
+                check=models.Q(level__in=Level.values),
+                name="seat_level_valid",
+            ),
+        ]
+
+    def __str__(self):
+        district_str = ""
+        if self.district:
+            district_str = f", district {self.district},"
+        city_str = ""
+        if self.city:
+            city_str = f" in the city of {self.city}"
+        county_str = ""
+        if self.county:
+            county_str = f" in {self.county} County"
+        state_str = ""
+        if self.state:
+            state_str = f" in the state of {self.get_state_display()}"
+        return (
+            f"{self.role} at the {self.get_level_display()} level"
+            f"{district_str}{city_str}{county_str}{state_str}"
+        )
+
+    def validate_unique(self, *args, **kwargs):
+        # Check that provided data represents a unique seat
+        if self.__class__.objects.filter(
+            level=self.level,
+            branch=self.branch,
+            role=self.role,
+            body=self.body,
+            district=self.district,
+            state=self.state,
+            county=self.county,
+            city=self.city,
+        ).exists():
+            raise ValidationError(
+                f"Seat must be unique at the provided level of {self.level}"
+            )
+        return super().validate_unique(*args, **kwargs)
+
+    def clean(self, *args, **kwargs):
+        # Set default role or raise if it isn't set and can't be determined
+        if not self.role:
+            match self.body:
+                case "H":
+                    self.role = "Representative"
+                case "S":
+                    self.role = "Senator"
+                case _:
+                    raise ValidationError(
+                        "Role could not be determined and must be set explicitly."
+                    )
+
+        # If state is not blank, check that it is valid
+        if self.state and self.state not in (
+            state_codes := [state[0] for state in STATE_CHOICES]
+        ):
+            raise ValidationError(
+                f"State value is invalid. Must be one of {', '.join(state_codes)}"
+            )
+
+        # If body is not blank, check that it is valid
+        if self.body and self.body not in (valid_bodies := LegislativeBody.values):
+            raise ValidationError(
+                f"Body value is invalid. Must be one of {', '.join(valid_bodies)}"
+            )
+
+        # For roles not at the Federal level, state must be set, and location field matching
+        # level should also be set
+        if self.level != "F":
+            if not self.state:
+                raise ValidationError(
+                    "State field must be set for all non-Federal roles."
+                )
+
+            if self.level == "C" and not self.city:
+                raise ValidationError(
+                    "City field must be set for seats with level of City."
+                )
+
+            if self.level == "T" and not self.county:
+                raise ValidationError(
+                    "County field must be set for seats with level of County."
+                )
+
+        # Check that the state and legislative body is set for legislative branch seats
+        if self.branch == "L":
+            if not self.state:
+                raise ValidationError(
+                    "State field must be set for all seats in the legislature."
+                )
+
+            if not self.body:
+                raise ValidationError(
+                    "Body field must be set for all seats in the legislature."
+                )
+
+        # Check that district is set for any seat in a House of Representatives,
+        # and any state senator
+        if (
+            self.body == "H" or (self.body == "S" and self.level == "S")
+        ) and not self.district:
+            raise ValidationError(
+                "District field must be set for all seats in the House of Representatives,",
+                " and all state senators.",
+            )
+
+        super().clean(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
