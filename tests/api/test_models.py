@@ -62,12 +62,13 @@ pytestmark = pytest.mark.django_db
         (
             Measure,
             {
-                "name": "M114",
+                "name": "26-232",
                 "level": "S",
                 "state": "OR",
+                "county": "Multnomah",
                 "election_date": date(2022, 11, 8),
             },
-            "M114: election on November 8, 2022 in Oregon",
+            "26-232: election on November 8, 2022 in Oregon",
         ),
         (
             Seat,
@@ -178,6 +179,14 @@ def test_create_valid_instance(model, data, model_string):
         (
             Candidate,
             {
+                "first_name": "Joe",
+                "date_of_birth": date(1947, 1, 1),
+            },
+            "candidate_unique_first_last_dob",
+        ),
+        (
+            Candidate,
+            {
                 "first_name": "Donna",
                 "last_name": "Clark",
             },
@@ -186,17 +195,9 @@ def test_create_valid_instance(model, data, model_string):
         (
             Candidate,
             {
-                "first_name": "Joe",
-                "date_of_birth": date(1947, 1, 1),
-            },
-            "candidate_unique_first_dob_null_last",
-        ),
-        (
-            Candidate,
-            {
                 "first_name": "Gordon",
             },
-            "candidate_unique_first_null_dob_last",
+            "candidate_unique_first_last_null_dob",
         ),
         (
             Measure,
