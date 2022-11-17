@@ -660,6 +660,22 @@ def test_candidate_full_name(data, full_name):
     assert c.full_name() == full_name
 
 
+def test_running_for_seat_foreign_key():
+    c = Candidate.objects.create(first_name="Ryan", last_name="Ray")
+    s = Seat.objects.create(level="F", role="President")
+    c.running_for_seat = s
+    c.save()
+    assert s.candidate_set.first() == c
+
+
+def test_seat_foreign_key():
+    c = Candidate.objects.create(first_name="Yo-Yo", last_name="Engberk")
+    s = Seat.objects.create(level="F", role="President")
+    c.seat = s
+    c.save()
+    assert s.incumbent.first() == c
+
+
 # Endorser
 def test_endorser_unique_constraint():
     e1 = {"name": "Basic Rights Oregon", "abbreviation": "BRO"}
