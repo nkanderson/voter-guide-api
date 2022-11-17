@@ -31,8 +31,8 @@ class Candidate(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
     first_name = models.CharField(max_length=120)
-    middle_name = models.CharField(max_length=120, null=True, blank=True)
-    last_name = models.CharField(max_length=120, null=True, blank=True)
+    middle_name = models.CharField(max_length=120, blank=True, default="")
+    last_name = models.CharField(max_length=120, blank=True, default="")
     date_of_birth = models.DateField(null=True)
     PARTIES = (
         ("C", "Constitution"),
@@ -88,17 +88,6 @@ class Candidate(models.Model):
                 condition=Q(date_of_birth__isnull=True),
                 name="candidate_unique_first_last_null_dob",
             ),
-            models.UniqueConstraint(
-                Lower("first_name"),
-                "date_of_birth",
-                condition=Q(last_name__isnull=True),
-                name="candidate_unique_first_dob_null_last",
-            ),
-            models.UniqueConstraint(
-                Lower("first_name"),
-                condition=Q(date_of_birth__isnull=True) & Q(last_name__isnull=True),
-                name="candidate_unique_first_null_dob_last",
-            ),
         ]
 
     def __str__(self):
@@ -130,6 +119,7 @@ class Measure(models.Model):
     name = models.CharField(max_length=120)
     description = models.TextField(blank=True)
     city = models.CharField(max_length=200, blank=True)
+    county = models.CharField(max_length=200, blank=True)
     state = USStateField(choices=STATE_CHOICES)
     election_date = models.DateField()
     passed = models.BooleanField(null=True)
