@@ -287,3 +287,70 @@ class Seat(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class AbstractEndorsement(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    endorser = models.ForeignKey(
+        "Endorser",
+        on_delete=models.CASCADE,
+    )
+    election_date = models.DateField()
+    url = models.URLField(max_length=500)
+
+    class Meta:
+        abstract = True
+
+
+class MeasureEndorsement(AbstractEndorsement):
+    class MeasureOptions(models.TextChoices):
+        YES = "Y", _("Yes")
+        NO = "N", _("No")
+        UNKNOWN = "U", _("Unknown")
+
+    measure = models.ForeignKey("Measure", on_delete=models.PROTECT)
+    recommendation = models.CharField(max_length=1, choices=MeasureOptions.choices)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                "endorser",
+                "election_date",
+                "measure",
+                name="measure_endorsement_unique_endorser_election_date_measure",
+            )
+        ]
+
+    def __str__(self):
+        recommends_str = " recommendation is unknown"
+        if self.recommendation != "U":
+            recommends_str = f" recommends {self.get_recommendation_display()}"
+        measure_str = f" for measure {self.measure.name}"
+        return f"{self.endorser.abbreviation}{recommends_str}{measure_str}"
+
+
+class SeatEndorsement(AbstractEndorsement):
+    seat = models.ForeignKey("Seat", on_delete=models.PROTECT)
+    # More than one candidate may be endorsed for a seat if the endorser includes
+    # a "green light" approach, where all acceptable candidates for a seat are endorsed
+    candidates = models.ManyToManyField("Candidate")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                "endorser",
+                "election_date",
+                "seat",
+                name="seat_endorsement_unique_endorser_election_date_seat",
+            )
+        ]
+
+    def __str__(self):
+        candidates_str = "no one"
+        if candidates := self.candidates.all():
+            candidates_str = ", ".join([c.full_name() for c in candidates])
+        return (
+            f"{self.endorser.abbreviation} is endorsing {candidates_str} for {self.seat}"
+            f" on {self.election_date.strftime('%B %-d, %Y')}"
+        )
