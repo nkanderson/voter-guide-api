@@ -3,11 +3,12 @@ from datetime import date
 import pytest
 from model_bakery import baker
 
-from voterguide.api.models import Candidate, Endorser, Measure
+from voterguide.api.models import Candidate, Endorser, Measure, Seat
 from voterguide.api.serializers import (
     CandidateSerializer,
     EndorserSerializer,
     MeasureSerializer,
+    SeatSerializer,
 )
 
 
@@ -32,6 +33,16 @@ from voterguide.api.serializers import (
                 "level": "C",
                 "state": "WA",
                 "election_date": date(2022, 11, 8),
+            },
+        ),
+        (
+            Seat,
+            SeatSerializer,
+            {
+                "level": "S",
+                "branch": "E",
+                "role": "Governor",
+                "state": "WA",
             },
         ),
     ],

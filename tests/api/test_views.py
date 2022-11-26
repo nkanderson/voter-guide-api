@@ -9,8 +9,13 @@ from django.urls import reverse
 from model_bakery import baker
 from rest_framework.test import force_authenticate
 
-from voterguide.api.models import Candidate, Endorser, Measure
-from voterguide.api.views import CandidateViewSet, EndorserViewSet, MeasureViewSet
+from voterguide.api.models import Candidate, Endorser, Measure, Seat
+from voterguide.api.views import (
+    CandidateViewSet,
+    EndorserViewSet,
+    MeasureViewSet,
+    SeatViewSet,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -27,7 +32,7 @@ def date_hook(json_dict):
 
 
 @pytest.mark.parametrize(
-    "model, viewset, data",
+    "model, viewset, data, baker_fields",
     [
         (
             Candidate,
@@ -37,6 +42,7 @@ def date_hook(json_dict):
                 "last_name": "Clark",
                 "party": "D",
             },
+            [],
         ),
         (
             Endorser,
@@ -45,6 +51,7 @@ def date_hook(json_dict):
                 "name": "Service Employees International Union",
                 "abbreviation": "SEIU",
             },
+            [],
         ),
         (
             Measure,
@@ -55,6 +62,18 @@ def date_hook(json_dict):
                 "level": "T",
                 "election_date": "2022-11-08",
             },
+            [],
+        ),
+        (
+            Seat,
+            SeatViewSet,
+            {
+                "level": "S",
+                "branch": "E",
+                "role": "Governor",
+                "state": "WA",
+            },
+            ["role", "state", "county", "city"],
         ),
     ],
 )
@@ -63,8 +82,8 @@ class TestList:
         class_name = model.__name__.lower()
         return reverse(f"{class_name}-list")
 
-    def test_list(self, drf_rf, model, viewset, data):
-        baker.make(model, _quantity=3)
+    def test_list(self, drf_rf, model, viewset, data, baker_fields):
+        baker.make(model, _quantity=3, _fill_optional=baker_fields)
         request = drf_rf.get(self.list_url(model))
         view = viewset.as_view({"get": "list"})
 
@@ -75,7 +94,15 @@ class TestList:
 
     @pytest.mark.parametrize("authenticated, status_code", [(True, 201), (False, 403)])
     def test_create(
-        self, authenticated, status_code, drf_rf, user, model, viewset, data
+        self,
+        authenticated,
+        status_code,
+        drf_rf,
+        user,
+        model,
+        viewset,
+        data,
+        baker_fields,
     ):
         request = drf_rf.post(
             self.list_url(model),
@@ -97,7 +124,7 @@ class TestList:
 
 
 @pytest.mark.parametrize(
-    "model, viewset, data",
+    "model, viewset, data, baker_fields",
     [
         (
             Candidate,
@@ -107,6 +134,7 @@ class TestList:
                 "last_name": "Clark",
                 "party": "W",
             },
+            [],
         ),
         (
             Endorser,
@@ -115,6 +143,7 @@ class TestList:
                 "name": "Sierra Club",
                 "abbreviation": "SC",
             },
+            [],
         ),
         (
             Measure,
@@ -125,6 +154,18 @@ class TestList:
                 "level": "T",
                 "election_date": "2022-11-08",
             },
+            [],
+        ),
+        (
+            Seat,
+            SeatViewSet,
+            {
+                "level": "S",
+                "branch": "E",
+                "role": "Governor",
+                "state": "WA",
+            },
+            ["role", "state", "county", "city"],
         ),
     ],
 )
@@ -133,8 +174,8 @@ class TestDetail:
         class_name = model.__name__.lower()
         return reverse(f"{class_name}-detail", kwargs={"pk": id})
 
-    def test_retrieve(self, drf_rf, model, viewset, data):
-        resource = baker.make(model)
+    def test_retrieve(self, drf_rf, model, viewset, data, baker_fields):
+        resource = baker.make(model, _fill_optional=baker_fields)
         request = drf_rf.get(self.detail_url(resource.id, model))
         view = viewset.as_view({"get": "retrieve"})
 
@@ -148,9 +189,17 @@ class TestDetail:
 
     @pytest.mark.parametrize("authenticated, status_code", [(True, 200), (False, 403)])
     def test_update(
-        self, authenticated, status_code, drf_rf, user, model, viewset, data
+        self,
+        authenticated,
+        status_code,
+        drf_rf,
+        user,
+        model,
+        viewset,
+        data,
+        baker_fields,
     ):
-        resource = baker.make(model)
+        resource = baker.make(model, _fill_optional=baker_fields)
         new_data = json.dumps(data, cls=DjangoJSONEncoder)
         request = drf_rf.put(
             self.detail_url(resource.id, model),
@@ -176,9 +225,17 @@ class TestDetail:
 
     @pytest.mark.parametrize("authenticated, status_code", [(True, 200), (False, 403)])
     def test_partial_update(
-        self, authenticated, status_code, drf_rf, user, model, viewset, data
+        self,
+        authenticated,
+        status_code,
+        drf_rf,
+        user,
+        model,
+        viewset,
+        data,
+        baker_fields,
     ):
-        resource = baker.make(model)
+        resource = baker.make(model, _fill_optional=baker_fields)
         first_key, *rest_keys = list(data.keys())
         update_data = dict(itertools.islice(data.items(), 1))
         request = drf_rf.patch(
@@ -210,9 +267,17 @@ class TestDetail:
 
     @pytest.mark.parametrize("authenticated, status_code", [(True, 204), (False, 403)])
     def test_destroy(
-        self, authenticated, status_code, drf_rf, user, model, viewset, data
+        self,
+        authenticated,
+        status_code,
+        drf_rf,
+        user,
+        model,
+        viewset,
+        data,
+        baker_fields,
     ):
-        resource = baker.make(model)
+        resource = baker.make(model, _fill_optional=baker_fields)
         resource_id = resource.id
         request = drf_rf.delete(self.detail_url(resource.id, model))
         if authenticated:
