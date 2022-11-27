@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from voterguide.api.models import Candidate, Endorser, Measure, Seat
+from voterguide.api.models import Candidate, Endorser, Measure, MeasureEndorsement, Seat
 
 
 class CandidateSerializer(serializers.HyperlinkedModelSerializer):
@@ -59,5 +59,19 @@ class SeatSerializer(serializers.HyperlinkedModelSerializer):
             "state",
             "city",
             "county",
+            "url",
+        ]
+
+
+class MeasureEndorsementSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = MeasureEndorsement
+        fields = [
+            "id",
+            "endorser",
+            "election_date",
+            "url",
+            "measure",
+            "recommendation",
             "url",
         ]

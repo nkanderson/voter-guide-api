@@ -5,6 +5,7 @@ from rest_framework.test import APIRequestFactory
 
 from voterguide.accounts.models import CustomUser
 from voterguide.api.models import Endorser, Measure, Seat
+from voterguide.api.serializers import EndorserSerializer, MeasureSerializer
 
 
 @pytest.fixture
@@ -46,3 +47,13 @@ def seat():
         role="Governor",
         state="OR",
     )
+
+
+@pytest.fixture
+def endorser_serializer(endorser, drf_rf):
+    return EndorserSerializer(endorser, context={"request": drf_rf.get("/")})
+
+
+@pytest.fixture
+def measure_serializer(measure, drf_rf):
+    return MeasureSerializer(measure, context={"request": drf_rf.get("/")})
