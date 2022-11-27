@@ -160,9 +160,9 @@ class TestList:
             Seat,
             SeatViewSet,
             {
+                "role": "Governor",
                 "level": "S",
                 "branch": "E",
-                "role": "Governor",
                 "state": "WA",
             },
             ["role", "state", "county", "city"],
