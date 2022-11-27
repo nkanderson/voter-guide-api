@@ -8,6 +8,11 @@ router.register(r"candidates", views.CandidateViewSet, basename="candidate")
 router.register(r"endorsers", views.EndorserViewSet, basename="endorser")
 router.register(r"measures", views.MeasureViewSet, basename="measure")
 router.register(r"seats", views.SeatViewSet, basename="seat")
+router.register(
+    r"measure-endorsements",
+    views.MeasureEndorsementViewSet,
+    basename="measureendorsement",
+)
 
 # The API URLs are determined automatically by the router.
 urlpatterns = [path("", include(router.urls))]
