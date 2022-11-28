@@ -4,8 +4,13 @@ import pytest
 from rest_framework.test import APIRequestFactory
 
 from voterguide.accounts.models import CustomUser
-from voterguide.api.models import Endorser, Measure, Seat
-from voterguide.api.serializers import EndorserSerializer, MeasureSerializer
+from voterguide.api.models import Candidate, Endorser, Measure, Seat
+from voterguide.api.serializers import (
+    CandidateSerializer,
+    EndorserSerializer,
+    MeasureSerializer,
+    SeatSerializer,
+)
 
 
 @pytest.fixture
@@ -50,6 +55,16 @@ def seat():
 
 
 @pytest.fixture
+@pytest.mark.django_db
+def candidate():
+    return Candidate.objects.create(
+        first_name="Cameron",
+        last_name="Howe",
+        date_of_birth=date(1961, 1, 1),
+    )
+
+
+@pytest.fixture
 def endorser_serializer(endorser, drf_rf):
     return EndorserSerializer(endorser, context={"request": drf_rf.get("/")})
 
@@ -57,3 +72,13 @@ def endorser_serializer(endorser, drf_rf):
 @pytest.fixture
 def measure_serializer(measure, drf_rf):
     return MeasureSerializer(measure, context={"request": drf_rf.get("/")})
+
+
+@pytest.fixture
+def seat_serializer(seat, drf_rf):
+    return SeatSerializer(seat, context={"request": drf_rf.get("/")})
+
+
+@pytest.fixture
+def candidate_serializer(candidate, drf_rf):
+    return CandidateSerializer(candidate, context={"request": drf_rf.get("/")})
