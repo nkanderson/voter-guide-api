@@ -33,7 +33,7 @@ class Candidate(models.Model):
     first_name = models.CharField(max_length=120)
     middle_name = models.CharField(max_length=120, blank=True, default="")
     last_name = models.CharField(max_length=120, blank=True, default="")
-    date_of_birth = models.DateField(null=True)
+    date_of_birth = models.DateField(null=True, blank=True)
     PARTIES = (
         ("C", "Constitution"),
         ("D", "Democrat"),
@@ -52,12 +52,14 @@ class Candidate(models.Model):
         "Seat",
         on_delete=models.SET_NULL,
         null=True,
+        blank=True,
         help_text="The seat a candidate is running for.",
     )
     seat = models.ForeignKey(
         "Seat",
         on_delete=models.SET_NULL,
         null=True,
+        blank=True,
         related_name="incumbent",
         help_text="The seat a candidate is currently holding (if any).",
     )
@@ -100,6 +102,10 @@ class Candidate(models.Model):
         return " ".join(
             name for name in (self.first_name, self.middle_name, self.last_name) if name
         )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class Endorser(models.Model):

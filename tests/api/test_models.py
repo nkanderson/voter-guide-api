@@ -172,7 +172,7 @@ def test_create_valid_instance(model, data, model_string):
 
 
 @pytest.mark.parametrize(
-    "model, data, constraint_name",
+    "model, data, error, constraint_name",
     [
         (
             Candidate,
@@ -181,6 +181,7 @@ def test_create_valid_instance(model, data, model_string):
                 "last_name": "Howe",
                 "date_of_birth": date(1961, 1, 1),
             },
+            ValidationError,
             "candidate_unique_first_last_dob",
         ),
         (
@@ -189,6 +190,7 @@ def test_create_valid_instance(model, data, model_string):
                 "first_name": "Joe",
                 "date_of_birth": date(1947, 1, 1),
             },
+            ValidationError,
             "candidate_unique_first_last_dob",
         ),
         (
@@ -197,6 +199,7 @@ def test_create_valid_instance(model, data, model_string):
                 "first_name": "Donna",
                 "last_name": "Clark",
             },
+            ValidationError,
             "candidate_unique_first_last_null_dob",
         ),
         (
@@ -204,6 +207,7 @@ def test_create_valid_instance(model, data, model_string):
             {
                 "first_name": "Gordon",
             },
+            ValidationError,
             "candidate_unique_first_last_null_dob",
         ),
         (
@@ -214,6 +218,7 @@ def test_create_valid_instance(model, data, model_string):
                 "state": "OR",
                 "election_date": date(2022, 11, 8),
             },
+            IntegrityError,
             "measure_unique_name_date_state",
         ),
         # NOTE: The following constraint exists at the database level, but the
@@ -231,9 +236,9 @@ def test_create_valid_instance(model, data, model_string):
         # ),
     ],
 )
-def test_unique_constraints(model, data, constraint_name):
+def test_unique_constraints(model, data, error, constraint_name):
     model.objects.create(**data)
-    with pytest.raises(IntegrityError, match=constraint_name):
+    with pytest.raises(error, match=constraint_name):
         model.objects.create(**data)
 
 
@@ -543,10 +548,6 @@ def test_create_unique_resources(model, original, near_duplicate):
     "model, data",
     [
         (
-            Candidate,
-            {"first_name": "Invalid", "last_name": "Party", "party": "Democrat"},
-        ),
-        (
             Endorser,
             {
                 "name": "Oregon League of Conservation Voters",
@@ -581,6 +582,19 @@ def test_create_field_exceeds_max_length(model, data):
 @pytest.mark.parametrize(
     "model, data, message",
     [
+        (
+            Candidate,
+            {
+                "first_name": "",
+                "date_of_birth": date(1984, 1, 1),
+            },
+            "field cannot be blank",
+        ),
+        (
+            Candidate,
+            {"first_name": "Invalid", "last_name": "Party", "party": "Democrat"},
+            "Value 'Democrat' is not a valid choice",
+        ),
         (
             Seat,
             {"level": "F", "state": "SD"},
