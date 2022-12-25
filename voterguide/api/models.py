@@ -27,7 +27,16 @@ class LegislativeBody(models.TextChoices):
     SENATE = "S", _("Senate")
 
 
+class CandidateManager(models.Manager):
+
+    # Need this for importing data
+    def get_by_natural_key(self, name):
+        return self.get(name=name)
+
+
 class Candidate(models.Model):
+    objects = CandidateManager()
+
     created = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
     first_name = models.CharField(max_length=120)
@@ -91,6 +100,10 @@ class Candidate(models.Model):
                 name="candidate_unique_first_last_null_dob",
             ),
         ]
+
+    # Need this for exporting data
+    # def natural_key(self):
+    #     return (self.name,)
 
     def __str__(self):
         born = ""
