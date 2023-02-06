@@ -35,7 +35,7 @@ pytestmark = pytest.mark.django_db
 # Need to convert date string from json into date object for comparison
 # to a model's date field
 def date_hook(json_dict):
-    for (key, value) in json_dict.items():
+    for key, value in json_dict.items():
         try:
             json_dict[key] = datetime.strptime(value, "%Y-%m-%d").date()
         except Exception:
