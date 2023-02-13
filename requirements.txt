@@ -35,4 +35,4 @@ PyYAML==6.0
 sqlparse==0.4.3
 toml==0.10.2
 tomli==2.0.1
-virtualenv==20.17.1
+virtualenv==20.19.0
