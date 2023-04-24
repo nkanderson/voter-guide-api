@@ -27,7 +27,7 @@ psycopg2==2.9.5
 pycodestyle==2.10.0
 pyflakes==3.0.1
 pyparsing==3.0.9
-pytest==7.2.2
+pytest==7.3.1
 pytest-django==4.5.2
 python-stdnum==1.18
 pytz==2023.3
