@@ -11,7 +11,7 @@ djangorestframework==3.14.0
 exceptiongroup==1.1.1
 filelock==3.12.0
 flake8==6.0.0
-identify==2.5.22
+identify==2.5.24
 iniconfig==2.0.0
 isort==5.12.0
 mccabe==0.7.0
