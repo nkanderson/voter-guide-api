@@ -15,7 +15,7 @@ identify==2.5.24
 iniconfig==2.0.0
 isort==5.12.0
 mccabe==0.7.0
-model-bakery==1.11.0
+model-bakery==1.12.0
 mypy-extensions==1.0.0
 nodeenv==1.8.0
 packaging==23.1
