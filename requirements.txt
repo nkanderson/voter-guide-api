@@ -24,7 +24,7 @@ platformdirs==3.9.1
 pluggy==1.2.0
 pre-commit==3.3.3
 psycopg2==2.9.6
-pycodestyle==2.10.0
+pycodestyle==2.11.0
 pyflakes==3.0.1
 pyparsing==3.1.0
 pytest==7.4.0
